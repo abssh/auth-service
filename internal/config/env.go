@@ -8,16 +8,20 @@ import (
 	"strconv"
 )
 
-func parseValue(tag Tag, t reflect.Type) (reflect.Value, error) {
+func getRawValue(tag Tag) (string, error) {
 	raw, exist := os.LookupEnv(tag.Name)
 	if !exist {
 		if tag.Required {
-			return reflect.Value{}, errors.New("config: couldn't find required env " + tag.Name)
+			return "", errors.New("config: couldn't find required env " + tag.Name)
 		}
 		if tag.Default != nil {
 			raw = *tag.Default
 		}
 	}
+	return raw, nil
+}
+
+func parseValue(raw string, t reflect.Type) (reflect.Value, error) {
 
 	switch t.Kind() {
 	case reflect.String:
