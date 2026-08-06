@@ -1,13 +1,16 @@
 package config
 
 import (
-	"reflect"
 	"github.com/abssh/auth-service/internal/logger"
+	"reflect"
 )
 
 type Config struct {
 	HttpHost string `env:"HTTP_HOST" default:""`
 	HttpPort int    `env:"HTTP_PORT" default:"8080"`
+
+	GrpcHost string `env:"GRPC_HOST" default:""`
+	GrpcPort int    `env:"GRPC_PORT" default:"9090"`
 
 	LogLevel logger.LogLevel `env:"LOG_LEVEL" default:"INFO"`
 }
@@ -26,12 +29,12 @@ func (cfg *Config) Load() error {
 		tag, err := parseTag(field.Tag)
 		if err != nil {
 			return err
-		} 
+		}
 
 		raw, err := getRawValue(*tag)
 
 		if reflect.PointerTo(fieldType).Implements(unmarshalerType) {
-			
+
 			ptr := reflect.New(fieldType)
 
 			u := ptr.Interface().(EnvUnmarshaller)
@@ -41,7 +44,7 @@ func (cfg *Config) Load() error {
 			}
 
 			value.Set(ptr.Elem())
-		
+
 		} else {
 			parsed, err := parseValue(raw, fieldType)
 			if err != nil {
@@ -49,7 +52,7 @@ func (cfg *Config) Load() error {
 			}
 			value.Set(parsed)
 
-		}		
+		}
 	}
 
 	return nil

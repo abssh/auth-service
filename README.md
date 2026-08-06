@@ -12,10 +12,10 @@ Current features:
 * Structured logging
 * Unit tests for configuration loading
 * Reusable testing utilities
+* Grpc api
 
 Planned features:
 
-* gRPC API
 * User registration
 * User authentication
 * JWT access and refresh tokens
@@ -31,28 +31,9 @@ Planned features:
 
 * Go
 * gRPC
-* Protocol Buffers
 * PostgreSQL (planned)
 * GitHub Actions
 * Jenkins (planned)
-
----
-
-## Project Structure
-
-```text
-.
-├── cmd/                # Application entry points
-├── internal/
-│   ├── config/         # Configuration loading
-│   ├── logger/         # Logging package
-│   ├── server/         # gRPC server (planned)
-│   └── testutil/       # Testing helpers
-├── .github/
-│   └── workflows/      # GitHub Actions
-├── go.mod
-└── README.md
-```
 
 ---
 
@@ -77,20 +58,22 @@ Download dependencies:
 go mod download
 ```
 
-Create the required environment variables (or a `.env` file if supported by the application).
+Create the required environment variables.
 
 Example:
 
 ```env
 HTTP_HOST=localhost
 HTTP_PORT=7000
+GRPC_HOST=localhost
+HTTP_PORT=7001
 LOG_LEVEL=INFO
 ```
 
 Run the service:
 
 ```bash
-go run ./cmd/...
+go run ./cmd/auth-service/main.go
 ```
 
 ---
@@ -109,28 +92,17 @@ Run tests with verbose output:
 go test -v ./...
 ```
 
-Generate a coverage report:
-
-```bash
-go test -cover ./...
-```
-
-Generate an HTML coverage report:
-
-```bash
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-```
-
 ---
 
 ## Configuration
 
 | Environment Variable | Description   | Default     |
 | --------------------- | -------------- | ------------ |
-| `HTTP_HOST`            | Server host    | `localhost`  |
-| `HTTP_PORT`            | Server port    | `8080`       |
-| `LOG_LEVEL`            | Logging level  | `INFO`       |
+| `HTTP_HOST`            | HTTP Server host    | Networking Deault  |
+| `HTTP_PORT`            | HTTP Server port    | `8080`             |
+| `GRPC_HOST`            | GRPC Server host    | Networking Deault  |
+| `GRPC_PORT`            | GRPC Server port    | `9090`             |
+| `LOG_LEVEL`            | Logging level       | `INFO`             |
 
 ---
 
@@ -166,7 +138,7 @@ ci/github-actions
 * [x] Structured logging
 * [x] Unit testing
 * [x] GitHub Actions
-* [ ] gRPC server
+* [x] gRPC server
 * [ ] PostgreSQL integration
 * [ ] User registration
 * [ ] User login
