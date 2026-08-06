@@ -37,24 +37,6 @@ Planned features:
 
 ---
 
-## Project Structure
-
-```text
-.
-├── cmd/                # Application entry points
-├── internal/
-│   ├── config/         # Configuration loading
-│   ├── logger/         # Logging package
-│   ├── server/         # gRPC server (planned)
-│   └── testutil/       # Testing helpers
-├── .github/
-│   └── workflows/      # GitHub Actions
-├── go.mod
-└── README.md
-```
-
----
-
 ## Requirements
 
 * Go 1.25 or newer
