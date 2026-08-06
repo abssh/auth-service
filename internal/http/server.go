@@ -8,18 +8,18 @@ import (
 )
 
 type Server struct {
-	config ServerConfig
+	config HttpConfig
 	logger *slog.Logger
 	mux    *stdhttp.ServeMux
 }
 
-func NewServer(logger *slog.Logger, cfg ServerConfig) *Server {
+func NewServer(logger *slog.Logger, cfg HttpConfig) *Server {
 	mux := stdhttp.NewServeMux()
 
 	s := &Server{
 		config: cfg,
 		logger: logger,
-		mux: mux,
+		mux:    mux,
 	}
 
 	s.registerRoutes()
@@ -29,13 +29,13 @@ func NewServer(logger *slog.Logger, cfg ServerConfig) *Server {
 func (s *Server) Listen() error {
 	addr := s.httpAddress()
 	s.logger.Info("starting http server", "address", addr)
-	
+
 	return stdhttp.ListenAndServe(addr, s.mux)
 }
 
 func (s *Server) httpAddress() string {
 	return net.JoinHostPort(
-        s.config.GetHttpHost(),
-        strconv.Itoa(s.config.GetHttpPort()),
-    )
+		s.config.GetHttpHost(),
+		strconv.Itoa(s.config.GetHttpPort()),
+	)
 }

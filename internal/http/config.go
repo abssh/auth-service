@@ -1,6 +1,6 @@
 package http
 
-type ServerConfig interface {
+type HttpConfig interface {
 	GetHttpHost() string
 	GetHttpPort() int
 }
