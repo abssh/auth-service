@@ -21,10 +21,11 @@ func NewServer(logger *slog.Logger, cfg GrpcConfig) *GrpcServer {
 		config: cfg,
 		logger: logger,
 	}
-
-	s.registerService()
-
 	return s
+}
+
+func (s *GrpcServer) RegisterHandler(fn func(*gogrpc.Server)) {
+    fn(s.server)
 }
 
 func (s *GrpcServer) Start() error {

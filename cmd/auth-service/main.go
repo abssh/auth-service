@@ -10,11 +10,15 @@ import (
 	"syscall"
 	"time"
 
+	authv1 "github.com/abssh/api-contract-sdk/sdk/go/auth/v1"
 	internalCommonTypes "github.com/abssh/auth-service/internal/common/types"
 	internalConfig "github.com/abssh/auth-service/internal/config"
 	internalGrpc "github.com/abssh/auth-service/internal/grpc"
+	internalGrpcHandler "github.com/abssh/auth-service/internal/grpc/handler"
+	internalGrpcService "github.com/abssh/auth-service/internal/grpc/service"
 	internalHttp "github.com/abssh/auth-service/internal/http"
 	internalLogger "github.com/abssh/auth-service/internal/logger"
+	gogrpc "google.golang.org/grpc"
 )
 
 type App struct {
@@ -124,10 +128,20 @@ func main() {
 		cfg,
 	)
 
+	// services
+	authSvc := internalGrpcService.NewAuthService()
+
+	// handlers
+	authHandler := internalGrpcHandler.NewAuthHandler(authSvc)
+
+
 	grpcServer := internalGrpc.NewServer(
 		logger,
 		cfg,
 	)
+	grpcServer.RegisterHandler(func(s *gogrpc.Server) {
+		authv1.RegisterAuthenticationServiceServer(s, authHandler)
+	})
 
 	app := App{
 		config: cfg,
