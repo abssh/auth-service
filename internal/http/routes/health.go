@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ type HealthResponse struct {
 	Status string  `json:"status"`
 }
 
-func(s *Server) health(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+func Health(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(stdhttp.StatusOK)
 
