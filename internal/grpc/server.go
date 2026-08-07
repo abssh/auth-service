@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -42,6 +43,20 @@ func (s *GrpcServer) Start() error {
 	return s.server.Serve(listener)
 }
 
-func (s *GrpcServer) Stop() {
-	s.server.GracefulStop()
+func (s *GrpcServer) Stop(ctx context.Context) error {
+	s.logger.Info("stopping grpc server")
+
+	grpcDone := make(chan struct{})
+
+	go func() {
+		s.server.GracefulStop()
+		close(grpcDone)
+	}()
+
+	select {
+	case <-grpcDone:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("grpc graceful stop timed out, forced stop")
+	}
 }

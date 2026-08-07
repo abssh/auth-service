@@ -8,6 +8,7 @@ import (
 	stdhttp "net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -59,14 +60,30 @@ func run () error {
 		logger.Info("shutting down", "signal", sig)
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	httpContext, httpCancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer httpCancel()
 
+	grpcContext, grpcCancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer grpcCancel()
+
 	go func() {
-		if err:= httpServer.Stop(httpContext); err != nil {
-			logger.Error("grpc shutdown error", "error", err)
+		defer wg.Done()
+		if err := httpServer.Stop(httpContext); err != nil {
+			logger.Error("http shutdown error", "error", err)
 		}
 	}()
+
+	go func() {
+		defer wg.Done()
+		if err := grpcServer.Stop(grpcContext); err != nil {
+			logger.Error("grpc shoutdown error", "error", err)
+		}
+	}()
+	
+	wg.Wait()
 
 	return nil
 }
