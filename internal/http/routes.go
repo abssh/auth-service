@@ -1,5 +1,11 @@
 package http
 
-func (s *Server) registerRoutes() {
-	s.mux.HandleFunc("GET /health", s.health)
+import (
+	stdhttp "net/http"
+
+	"github.com/abssh/auth-service/internal/http/routes"
+)
+
+func registerRoutes(mux *stdhttp.ServeMux) {
+	mux.HandleFunc("GET /health", routes.Health)
 }

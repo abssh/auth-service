@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	stdhttp "net/http"
@@ -10,32 +11,36 @@ import (
 type Server struct {
 	config HttpConfig
 	logger *slog.Logger
-	mux    *stdhttp.ServeMux
+	server *stdhttp.Server
 }
 
 func NewServer(logger *slog.Logger, cfg HttpConfig) *Server {
 	mux := stdhttp.NewServeMux()
-
 	s := &Server{
 		config: cfg,
 		logger: logger,
-		mux:    mux,
 	}
 
-	s.registerRoutes()
+	registerRoutes(mux)
+
+	s.server = &stdhttp.Server{
+		Addr: net.JoinHostPort(
+			s.config.GetHttpHost(),
+			strconv.Itoa(s.config.GetHttpPort()),
+		),
+		Handler: mux,
+	}
+
 	return s
 }
 
-func (s *Server) Listen() error {
-	addr := s.httpAddress()
-	s.logger.Info("starting http server", "address", addr)
+func (s *Server) Start() error {
+	s.logger.Info("starting http server", "address", s.server.Addr)
 
-	return stdhttp.ListenAndServe(addr, s.mux)
+	return s.server.ListenAndServe()
 }
 
-func (s *Server) httpAddress() string {
-	return net.JoinHostPort(
-		s.config.GetHttpHost(),
-		strconv.Itoa(s.config.GetHttpPort()),
-	)
+func (s *Server) Stop(ctx context.Context) error {
+	s.logger.Info("stopping http server")
+	return s.server.Shutdown(ctx)
 }
