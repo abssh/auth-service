@@ -2,88 +2,144 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
-	stdhttp "net/http"
-	"os"
+	"log/slog"
+	"net/http"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
+	internalCommonTypes "github.com/abssh/auth-service/internal/common/types"
 	internalConfig "github.com/abssh/auth-service/internal/config"
 	internalGrpc "github.com/abssh/auth-service/internal/grpc"
 	internalHttp "github.com/abssh/auth-service/internal/http"
 	internalLogger "github.com/abssh/auth-service/internal/logger"
 )
 
-func main() {
-	if err := run(); err != nil {
-		log.Fatalf("Startup failed: %s", err.Error())
+type App struct {
+	config  *internalConfig.Config
+	logger  *slog.Logger
+	servers []internalCommonTypes.Server
+}
+
+func (a *App) AddServer(server internalCommonTypes.Server) {
+	a.servers = append(a.servers, server)
+}
+
+func (a *App) startServers(errCh chan<- error) {
+	for _, server := range a.servers {
+		s := server
+
+		go func() {
+			errCh <- s.Start()
+		}()
 	}
 }
 
-func run () error {
+func (a *App) stopServers(errCh chan<- error) {
+	for _, server := range a.servers {
+		s := server
 
-	cfg := internalConfig.Config{}
+		go func() {
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				10*time.Second,
+			)
+			defer cancel()
+
+			errCh <- s.Stop(ctx)
+		}()
+	}
+}
+
+func (a *App) run() []error {
+	errs := make([]error, 0)
+
+	startErrCh := make(chan error, len(a.servers))
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	defer stop()
+
+	// Start servers
+	a.startServers(startErrCh)
+
+	// Wait for shutdown condition
+	select {
+	case <-ctx.Done():
+		a.logger.Info(
+			"shutdown signal received",
+			"signal", ctx.Err(),
+		)
+
+	case err := <-startErrCh:
+		if err != nil && err != http.ErrServerClosed {
+			errs = append(errs, err)
+
+			a.logger.Error(
+				"server failed",
+				"error", err,
+			)
+		}
+	}
+
+	// Stop servers
+	stopErrCh := make(chan error, len(a.servers))
+
+	a.stopServers(stopErrCh)
+
+	for range a.servers {
+		err := <-stopErrCh
+
+		if err != nil && err != http.ErrServerClosed {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func main() {
+	cfg := &internalConfig.Config{}
+
 	err := cfg.Load()
 	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-	
-	logger := internalLogger.New(&cfg)
-	logger.Info("log level is set to " + cfg.GetLogLevel().Level().String())
-
-	errCh := make(chan error, 2)
-
-	httpServer := internalHttp.NewServer(logger, &cfg)
-	go func () {
-		if err := httpServer.Start(); err != nil && !errors.Is(err, stdhttp.ErrServerClosed) {
-			errCh <- err
-		}
-		
-	}()
-	
-	grpcServer := internalGrpc.NewServer(logger, &cfg)
-	go func() {
-		errCh <- grpcServer.Start()
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case err := <-errCh:
-		logger.Error("server error, shutting down", "error", err)
-	case sig := <-quit:
-		logger.Info("shutting down", "signal", sig)
+		err = fmt.Errorf("load config: %w", err)
+		log.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	logger := internalLogger.New(cfg)
 
-	httpContext, httpCancel := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer httpCancel()
+	logger.Info(
+		"log level is set to "+
+			cfg.GetLogLevel().Level().String(),
+	)
 
-	grpcContext, grpcCancel := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer grpcCancel()
+	httpServer := internalHttp.NewServer(
+		logger,
+		cfg,
+	)
 
-	go func() {
-		defer wg.Done()
-		if err := httpServer.Stop(httpContext); err != nil {
-			logger.Error("http shutdown error", "error", err)
-		}
-	}()
+	grpcServer := internalGrpc.NewServer(
+		logger,
+		cfg,
+	)
 
-	go func() {
-		defer wg.Done()
-		if err := grpcServer.Stop(grpcContext); err != nil {
-			logger.Error("grpc shoutdown error", "error", err)
-		}
-	}()
-	
-	wg.Wait()
+	app := App{
+		config: cfg,
+		logger: logger,
+	}
 
-	return nil
+	app.AddServer(httpServer)
+	app.AddServer(grpcServer)
+
+	for _, err := range app.run() {
+		logger.Error(err.Error())
+	}
+
+	logger.Info("application stopped")
 }
